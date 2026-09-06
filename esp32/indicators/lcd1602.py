@@ -15,7 +15,9 @@ class LCD1602:
     _BACKLIGHT = 0x08
     _RS = 0x01
 
-    def __init__(self, sda_pin=32, scl_pin=33, i2c_id=0, address=None):
+    def __init__(self, sda_pin=21, scl_pin=22, i2c_id=0, address=None):
+        self.sda_pin = sda_pin
+        self.scl_pin = scl_pin
         self.i2c = I2C(
             i2c_id,
             sda=Pin(sda_pin),
@@ -35,7 +37,12 @@ class LCD1602:
         if devices:
             return devices[0]
 
-        raise OSError("Aucun LCD I2C detecte sur SDA 32 / SCL 33")
+        raise OSError(
+            "Aucun LCD I2C detecte sur SDA {} / SCL {}".format(
+                self.sda_pin,
+                self.scl_pin
+            )
+        )
 
     def _write_expander(self, value):
         self.i2c.writeto(self.address, bytes((value | self._BACKLIGHT,)))

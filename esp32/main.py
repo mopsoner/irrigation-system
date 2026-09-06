@@ -13,6 +13,7 @@ sensor = DHTSensor(pin_number=27)
 
 leds = StatusLeds(
     green_pin=15,
+    yellow_pin=2,
     red_pin=21
 )
 
@@ -30,13 +31,10 @@ while True:
         temperature = data["temperature"]
         humidity = data["humidity"]
 
-        statusTemperature = leds.update_from_temperature(
+        status_temperature, status_humidity = leds.update(
             temperature,
-            TEMP_THRESHOLD
-        )
-
-        statusHumidity= leds.update_from_humidity(
             humidity,
+            TEMP_THRESHOLD,
             HUM_THRESHOLD
         )
 
@@ -44,7 +42,7 @@ while True:
             "Temperature: {} C | Humidity: {} % | Status: {}".format(
                 temperature,
                 humidity,
-                statusTemperature+" / "+statusHumidity
+                status_temperature + " / " + status_humidity
             )
         )
 

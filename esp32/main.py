@@ -1,6 +1,7 @@
 from time import sleep
 
 from sensors.dht_sensor import DHTSensor
+from sensors.motion_sensor import MotionSensor
 from indicators.leds import StatusLeds
 from indicators.lcd1602 import LCD1602
 
@@ -13,9 +14,11 @@ HUM_THRESHOLD = 75
 # uniquement sur l'ESP32 classique et ne peuvent pas servir de SDA/SCL.
 LCD_SDA_PIN = 13
 LCD_SCL_PIN = 14
+MOTION_SENSOR_PIN = 35
 
 
 sensor = DHTSensor(pin_number=27)
+motion_sensor = MotionSensor(pin_number=MOTION_SENSOR_PIN)
 
 leds = StatusLeds(
     green_pin=15,
@@ -66,6 +69,7 @@ while True:
 
         temperature = data["temperature"]
         humidity = data["humidity"]
+        motion_detected = motion_sensor.motion_detected()
 
         status_temperature, status_humidity = leds.update(
             temperature,
@@ -75,25 +79,30 @@ while True:
         )
 
         print(
-            "Temperature: {} C | Humidity: {} % | Status: {}".format(
+            "Temperature: {} C | Humidity: {} % | Motion: {} | Status: {}".format(
                 temperature,
                 humidity,
+                "DETECTED" if motion_detected else "NONE",
                 status_temperature + " / " + status_humidity
             )
         )
 
         display_message(
             "T:{}C H:{}%".format(temperature, humidity),
-            "{} / {}".format(status_temperature, status_humidity)
+            "T:{} H:{} M:{}".format(
+                status_temperature[0],
+                status_humidity[0],
+                "OUI" if motion_detected else "NON",
+            )
         )
 
     except Exception as error:
-        print("DHT11 error:", error)
+        print("Sensor error:", error)
         # A sensor failure must be visible instead of leaving every LED off.
         leds.red_on()
         display_message(
             "Erreur capteur",
-            "Verifier DHT11"
+            "Verifier capteurs"
         )
 
     sleep(3)

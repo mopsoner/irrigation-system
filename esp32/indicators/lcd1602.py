@@ -99,7 +99,11 @@ class LCD1602:
         """Ecrit deux lignes, tronquees ou completees a 16 caracteres."""
         for row, line in enumerate((first_line, second_line)):
             self.set_cursor(0, row)
-            self.write(str(line)[:16].ljust(16))
+            # Certaines versions allegees de MicroPython n'implementent pas
+            # str.ljust(). Le remplissage explicite reste compatible avec ces
+            # firmwares tout en effacant la fin d'une ancienne ligne longue.
+            line = str(line)[:16]
+            self.write(line + " " * (16 - len(line)))
 
     def clear(self):
         self._command(self._CLEAR)

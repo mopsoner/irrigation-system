@@ -45,6 +45,12 @@ dans le REPL avec `import camera; print(dir(camera))`, puis installer un firmwar
 ESP32 avec le pilote caméra natif si aucune des API indiquées ci-dessus n'est
 présente.
 
+Chaque capture est vérifiée avant son enregistrement : une image qui ne
+commence pas par la signature JPEG `FF D8` est refusée au lieu de créer un
+fichier `.jpg` illisible. Le message `capture non JPEG` signifie que le pilote
+renvoie probablement des pixels RGB bruts et doit être configuré en JPEG. Les
+anciens fichiers déjà incorrects doivent être supprimés du dossier `/photos`.
+
 ## Configuration Wi-Fi
 
 Dans `esp32/wifi_config.py`, laisser `WIFI_SSID = None` pour uniquement scanner

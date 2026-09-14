@@ -10,10 +10,13 @@ sys.path.insert(0, str(ROOT / "esp32"))
 from cameras.ov2640 import OV2640Camera
 
 
+JPEG_DATA = b"\xff\xd8jpeg-data\xff\xd9"
+
+
 class FakeCameraModule:
     JPEG = 7
 
-    def __init__(self, image=b"jpeg-data", init_result=True):
+    def __init__(self, image=JPEG_DATA, init_result=True):
         self.image = image
         self.init_result = init_result
         self.init_calls = []
@@ -34,15 +37,20 @@ class FakeCameraModule:
 class FakeObjectCamera:
     def __init__(self):
         self.closed = False
+        self.pixel_format = None
+
+    def set_pixel_format(self, pixel_format):
+        self.pixel_format = pixel_format
 
     def snapshot(self):
-        return b"object-jpeg"
+        return JPEG_DATA
 
     def close(self):
         self.closed = True
 
 
 class FakeObjectCameraModule:
+    JPEG = 9
     Camera = FakeObjectCamera
 
 
@@ -56,7 +64,7 @@ class OV2640CameraTests(unittest.TestCase):
             second_path = camera.capture()
 
             self.assertEqual(module.init_calls, [(0, {"format": module.JPEG})])
-            self.assertEqual(pathlib.Path(first_path).read_bytes(), b"jpeg-data")
+            self.assertEqual(pathlib.Path(first_path).read_bytes(), JPEG_DATA)
             self.assertEqual(pathlib.Path(second_path).name, "photo_0002.jpg")
 
     def test_rejects_failed_initialization(self):
@@ -76,12 +84,36 @@ class OV2640CameraTests(unittest.TestCase):
             path = camera.capture()
             camera.deinit()
 
-            self.assertEqual(pathlib.Path(path).read_bytes(), b"object-jpeg")
+            self.assertEqual(pathlib.Path(path).read_bytes(), JPEG_DATA)
+            self.assertEqual(camera.camera.pixel_format, 9)
             self.assertTrue(camera.camera.closed)
 
     def test_explains_when_the_camera_module_is_incompatible(self):
         with self.assertRaisesRegex(RuntimeError, "firmware MicroPython"):
             OV2640Camera(camera_module=object())
+
+    def test_does_not_save_raw_pixels_with_a_jpg_extension(self):
+        with tempfile.TemporaryDirectory() as directory:
+            photo_directory = pathlib.Path(directory) / "photos"
+            camera = OV2640Camera(
+                str(photo_directory),
+                FakeCameraModule(image=b"\x10\xe3raw-pixels"),
+            )
+
+            with self.assertRaisesRegex(OSError, "capture non JPEG"):
+                camera.capture()
+
+            self.assertEqual(list(photo_directory.iterdir()), [])
+
+    def test_accepts_pixformat_jpeg_constant_name(self):
+        module = FakeCameraModule()
+        module.PIXFORMAT_JPEG = module.JPEG
+        module.JPEG = None
+
+        with tempfile.TemporaryDirectory() as directory:
+            OV2640Camera(directory + "/photos", module)
+
+        self.assertEqual(module.init_calls, [(0, {"format": 7})])
 
 
 if __name__ == "__main__":

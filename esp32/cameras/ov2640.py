@@ -18,6 +18,12 @@ class OV2640Camera:
             # L'API objet initialise le capteur dans Camera(). Les methodes
             # init() eventuelles de l'instance n'ont pas toutes la meme
             # signature que l'API fonctionnelle.
+            jpeg_format = self._jpeg_format()
+            for name in ("set_pixel_format", "set_pixformat", "pixformat"):
+                setter = getattr(self.camera, name, None)
+                if callable(setter) and jpeg_format is not None:
+                    setter(jpeg_format)
+                    break
             return
 
         initializer = getattr(self.camera, "init", None)
@@ -26,11 +32,27 @@ class OV2640Camera:
             # par son constructeur, sans methode init().
             return
 
-        jpeg_format = getattr(self.camera_module, "JPEG", None)
-        options = {} if jpeg_format is None else {"format": jpeg_format}
+        jpeg_format = self._jpeg_format()
+        if jpeg_format is None:
+            raise RuntimeError(
+                "format JPEG indisponible dans le module camera; "
+                "les images brutes ne peuvent pas etre sauvees en .jpg"
+            )
+        options = {"format": jpeg_format}
         result = initializer(0, **options)
         if result is False:
             raise OSError("initialisation OV2640 impossible")
+
+    def _jpeg_format(self):
+        for name in ("JPEG", "PIXFORMAT_JPEG", "JPG"):
+            value = getattr(self.camera_module, name, None)
+            if value is not None:
+                return value
+
+        pixel_format = getattr(self.camera_module, "PixelFormat", None)
+        if pixel_format is not None:
+            return getattr(pixel_format, "JPEG", None)
+        return None
 
     def _select_camera_api(self):
         """Accepte les API MicroPython fonctionnelle et orientee objet."""
@@ -79,8 +101,23 @@ class OV2640Camera:
         if capture is None:
             capture = self.camera.snapshot
         image = capture()
+        for attribute in ("data", "buffer", "buf"):
+            if hasattr(image, attribute):
+                image = getattr(image, attribute)
+                image = image() if callable(image) else image
+                break
         if not image:
             raise OSError("aucune image recue de l'OV2640")
+
+        # Une trame RGB565/RGB888 renommee .jpg produit un fichier illisible.
+        # Un JPEG commence obligatoirement par le marqueur SOI FF D8.
+        if len(image) < 2 or image[0] != 0xFF or image[1] != 0xD8:
+            signature = bytes(image[:2])
+            raise OSError(
+                "capture non JPEG (debut {}); configurer la camera en JPEG".format(
+                    signature
+                )
+            )
 
         path = self._next_path()
         with open(path, "wb") as photo:

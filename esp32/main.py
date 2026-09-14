@@ -12,6 +12,11 @@ HUM_THRESHOLD = 75
 
 sensor = DHTSensor(pin_number=27)
 
+lcd = LCD1602(
+    sda_pin=21,
+    scl_pin=22
+)
+
 leds = StatusLeds(
     green_pin=15,
     yellow_pin=2,

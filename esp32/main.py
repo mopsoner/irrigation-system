@@ -5,6 +5,8 @@ from sensors.motion_sensor import MotionSensor
 from indicators.leds import StatusLeds
 from indicators.lcd1602 import LCD1602
 from indicators.buzzer import StateChangeBuzzer
+from connectivity.wifi import WiFi
+from wifi_config import WIFI_CONNECTION_TIMEOUT_MS, WIFI_PASSWORD, WIFI_SSID
 
 
 TEMP_THRESHOLD = 30
@@ -22,6 +24,42 @@ BUZZER_PIN = 12
 sensor = DHTSensor(pin_number=27)
 motion_sensor = MotionSensor(pin_number=MOTION_SENSOR_PIN)
 buzzer = StateChangeBuzzer(pin_number=BUZZER_PIN)
+
+
+def initialize_wifi():
+    wifi = WiFi()
+
+    try:
+        networks = wifi.scan()
+        print("Wi-Fi networks found:", len(networks))
+        for access_point in networks:
+            name = access_point["ssid"] or "<hidden>"
+            print(
+                " - {} | channel {} | {} dBm | security {}".format(
+                    name,
+                    access_point["channel"],
+                    access_point["rssi"],
+                    access_point["security"],
+                )
+            )
+
+        if WIFI_SSID:
+            ip_config = wifi.connect(
+                WIFI_SSID,
+                WIFI_PASSWORD,
+                timeout_ms=WIFI_CONNECTION_TIMEOUT_MS,
+            )
+            print("Wi-Fi connected to '{}' | IP: {}".format(WIFI_SSID, ip_config[0]))
+        else:
+            print("Wi-Fi scan only: configure WIFI_SSID in wifi_config.py to connect")
+    except Exception as error:
+        # La surveillance des capteurs doit rester disponible hors connexion.
+        print("Wi-Fi error:", error)
+
+    return wifi
+
+
+wifi = initialize_wifi()
 
 leds = StatusLeds(
     green_pin=15,

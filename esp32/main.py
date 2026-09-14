@@ -6,6 +6,7 @@ from indicators.leds import StatusLeds
 from indicators.lcd1602 import LCD1602
 from indicators.buzzer import StateChangeBuzzer
 from connectivity.wifi import WiFi
+from cameras.ov2640 import OV2640Camera
 from wifi_config import WIFI_CONNECTION_TIMEOUT_MS, WIFI_PASSWORD, WIFI_SSID
 
 
@@ -24,6 +25,18 @@ BUZZER_PIN = 12
 sensor = DHTSensor(pin_number=27)
 motion_sensor = MotionSensor(pin_number=MOTION_SENSOR_PIN)
 buzzer = StateChangeBuzzer(pin_number=BUZZER_PIN)
+
+
+def initialize_camera():
+    try:
+        camera = OV2640Camera()
+        print("OV2640 camera ready")
+        return camera
+    except Exception as error:
+        # Le controle des capteurs reste operationnel avec un firmware sans
+        # module camera ou lorsque l'OV2640 est debranche.
+        print("OV2640 camera error:", error)
+        return None
 
 
 def initialize_wifi():
@@ -60,6 +73,7 @@ def initialize_wifi():
 
 
 wifi = initialize_wifi()
+camera = initialize_camera()
 
 leds = StatusLeds(
     green_pin=15,
@@ -94,6 +108,8 @@ def display_message(first_line, second_line):
         print("LCD1602 write error:", error)
 
 print("================================")
+
+motion_was_detected = False
 display_message(
     "Irrigation",
     "Demarrage..."
@@ -111,6 +127,18 @@ while True:
         temperature = data["temperature"]
         humidity = data["humidity"]
         motion_detected = motion_sensor.motion_detected()
+        photo_path = None
+
+        # Une detection correspond au front montant du PIR. Tant que sa sortie
+        # reste haute, une seule photo est donc prise.
+        if motion_detected and not motion_was_detected and camera is not None:
+            try:
+                photo_path = camera.capture()
+                print("Photo captured:", photo_path)
+            except Exception as error:
+                # Une erreur camera ne doit pas masquer les mesures DHT/PIR.
+                print("OV2640 capture error:", error)
+        motion_was_detected = motion_detected
 
         status_temperature, status_humidity = leds.update(
             temperature,
@@ -134,14 +162,20 @@ while True:
             )
         )
 
-        display_message(
-            "T:{}C H:{}%".format(temperature, humidity),
-            "T:{} H:{} M:{}".format(
-                status_temperature[0],
-                status_humidity[0],
-                "OUI" if motion_detected else "NON",
+        if photo_path:
+            display_message(
+                "Photo prise !",
+                photo_path.split("/")[-1],
             )
-        )
+        else:
+            display_message(
+                "T:{}C H:{}%".format(temperature, humidity),
+                "T:{} H:{} M:{}".format(
+                    status_temperature[0],
+                    status_humidity[0],
+                    "OUI" if motion_detected else "NON",
+                )
+            )
 
     except Exception as error:
         print("Sensor error:", error)

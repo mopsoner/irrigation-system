@@ -19,6 +19,7 @@ fi
 echo "Deploiement de l'application complete sur ${PORT}..."
 mpremote connect "${PORT}" fs cp -r esp32/actuators :
 mpremote connect "${PORT}" fs cp -r esp32/connectivity :
+mpremote connect "${PORT}" fs cp -r esp32/cameras :
 mpremote connect "${PORT}" fs cp -r esp32/indicators :
 mpremote connect "${PORT}" fs cp -r esp32/sensors :
 mpremote connect "${PORT}" fs cp esp32/boot.py :boot.py

@@ -17,6 +17,9 @@ leds = StatusLeds(
     red_pin=4
 )
 
+# Keep a visible indicator on while the first sensor measurement is pending.
+leds.yellow_on()
+
 print("================================")
 print(" Irrigation ESP32 Controller")
 print(" Temperature monitoring")
@@ -48,6 +51,7 @@ while True:
 
     except Exception as error:
         print("DHT11 error:", error)
-        leds.off()
+        # A sensor failure must be visible instead of leaving every LED off.
+        leds.red_on()
 
     sleep(3)

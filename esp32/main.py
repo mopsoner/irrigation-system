@@ -1,7 +1,7 @@
-from time import sleep
+from time import sleep_ms, ticks_diff, ticks_ms
 
 from sensors.dht_sensor import DHTSensor
-from sensors.motion_sensor import MotionSensor
+from sensors.motion_sensor import MotionActivationTracker, MotionSensor
 from indicators.leds import StatusLeds
 from indicators.lcd1602 import LCD1602
 from indicators.buzzer import StateChangeBuzzer
@@ -20,6 +20,8 @@ LCD_SDA_PIN = 13
 LCD_SCL_PIN = 14
 MOTION_SENSOR_PIN = 35
 BUZZER_PIN = 12
+PIR_POLL_INTERVAL_MS = 100
+DHT_READ_INTERVAL_MS = 3000
 
 
 sensor = DHTSensor(pin_number=27)
@@ -109,7 +111,12 @@ def display_message(first_line, second_line):
 
 print("================================")
 
-motion_was_detected = False
+motion_tracker = MotionActivationTracker()
+if motion_sensor.on_rising(motion_tracker.notify_rising):
+    print("PIR rising-edge interrupt enabled")
+else:
+    print("PIR interrupt unavailable; using fast polling")
+
 display_message(
     "Irrigation",
     "Demarrage..."
@@ -120,45 +127,58 @@ print(" Threshold: {} C".format(TEMP_THRESHOLD))
 print("================================")
 
 
+last_dht_read_ms = ticks_ms() - DHT_READ_INTERVAL_MS
+last_temperature = None
+last_humidity = None
+last_temperature_status = "WAIT"
+last_humidity_status = "WAIT"
+
 while True:
+    motion_detected = motion_sensor.motion_detected()
+    photo_path = None
+
+    # L'IRQ ne fait que poser un indicateur. La capture et l'ecriture du
+    # fichier restent dans la boucle principale. Le sondage rapide observe
+    # aussi sans delai le retour a l'etat bas et sert de repli sans IRQ.
+    if motion_tracker.update(motion_detected) and camera is not None:
+        try:
+            photo_path = camera.capture()
+            print("Photo captured:", photo_path)
+        except Exception as error:
+            print("OV2640 capture error:", error)
+
     try:
+        now = ticks_ms()
+        if ticks_diff(now, last_dht_read_ms) < DHT_READ_INTERVAL_MS:
+            if photo_path:
+                display_message("Photo prise !", photo_path.split("/")[-1])
+            sleep_ms(PIR_POLL_INTERVAL_MS)
+            continue
+
+        last_dht_read_ms = now
         data = sensor.read()
+        last_temperature = data["temperature"]
+        last_humidity = data["humidity"]
 
-        temperature = data["temperature"]
-        humidity = data["humidity"]
-        motion_detected = motion_sensor.motion_detected()
-        photo_path = None
-
-        # Une detection correspond au front montant du PIR. Tant que sa sortie
-        # reste haute, une seule photo est donc prise.
-        if motion_detected and not motion_was_detected and camera is not None:
-            try:
-                photo_path = camera.capture()
-                print("Photo captured:", photo_path)
-            except Exception as error:
-                # Une erreur camera ne doit pas masquer les mesures DHT/PIR.
-                print("OV2640 capture error:", error)
-        motion_was_detected = motion_detected
-
-        status_temperature, status_humidity = leds.update(
-            temperature,
-            humidity,
+        last_temperature_status, last_humidity_status = leds.update(
+            last_temperature,
+            last_humidity,
             TEMP_THRESHOLD,
             HUM_THRESHOLD
         )
 
         buzzer.notify_state((
-            status_temperature,
-            status_humidity,
+            last_temperature_status,
+            last_humidity_status,
             motion_detected,
         ))
 
         print(
             "Temperature: {} C | Humidity: {} % | Motion: {} | Status: {}".format(
-                temperature,
-                humidity,
+                last_temperature,
+                last_humidity,
                 "DETECTED" if motion_detected else "NONE",
-                status_temperature + " / " + status_humidity
+                last_temperature_status + " / " + last_humidity_status
             )
         )
 
@@ -169,10 +189,10 @@ while True:
             )
         else:
             display_message(
-                "T:{}C H:{}%".format(temperature, humidity),
+                "T:{}C H:{}%".format(last_temperature, last_humidity),
                 "T:{} H:{} M:{}".format(
-                    status_temperature[0],
-                    status_humidity[0],
+                    last_temperature_status[0],
+                    last_humidity_status[0],
                     "OUI" if motion_detected else "NON",
                 )
             )
@@ -187,4 +207,4 @@ while True:
             "Verifier capteurs"
         )
 
-    sleep(3)
+    sleep_ms(PIR_POLL_INTERVAL_MS)

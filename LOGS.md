@@ -11,6 +11,8 @@ Ce fichier sert de journal de bord du projet afin de conserver un historique cla
 - connexion facultative via `esp32/wifi_config.py`
 - delai de connexion configurable et fonctionnement des capteurs maintenu en cas d'erreur Wi-Fi
 - le mot de passe n'est jamais affiche dans la console
+- ajout de `deploy.sh` pour copier tous les modules sur la carte et eviter les
+  erreurs d'import provoquees par une copie isolee de `main.py`
 
 ### État actuel
 

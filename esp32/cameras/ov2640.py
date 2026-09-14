@@ -138,8 +138,8 @@ class OV2640Camera:
 
         # Une trame RGB565/RGB888 renommee .jpg produit un fichier illisible.
         # Un JPEG commence obligatoirement par le marqueur SOI FF D8.
-        if len(image) < 2 or image[0] != 0xFF or image[1] != 0xD8:
-            signature = bytes(image[:2])
+        signature = bytes(image[:2])
+        if signature != b"\xff\xd8":
             raise OSError(
                 "capture non JPEG (debut {}); configurer la camera en JPEG".format(
                     signature

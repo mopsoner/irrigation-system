@@ -4,6 +4,12 @@ Ce fichier sert de journal de bord du projet afin de conserver un historique cla
 
 ## 2026-09-14
 
+### Correction de la validation JPEG OV2640
+
+- les deux premiers elements du buffer Freenove sont desormais convertis en
+  `bytes` avant la verification de la signature JPEG `FF D8`, afin d'eviter les
+  faux negatifs avec des elements qui ne sont pas des `int` Python standards
+
 ### Initialisation JPEG de la camera OV2640
 
 - l'API objet Freenove construit desormais `Camera` directement avec

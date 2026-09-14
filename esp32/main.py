@@ -2,6 +2,7 @@ from time import sleep
 
 from sensors.dht_sensor import DHTSensor
 from indicators.leds import StatusLeds
+from indicators.lcd1602 import LCD1602
 
 
 TEMP_THRESHOLD = 30
@@ -20,7 +21,34 @@ leds = StatusLeds(
 # Keep a visible indicator on while the first sensor measurement is pending.
 leds.yellow_on()
 
+lcd = None
+
+try:
+    lcd = LCD1602(
+        sda_pin=34,
+        scl_pin=35
+    )
+    print("LCD1602 detected at address", hex(lcd.address))
+except Exception as error:
+    # La surveillance continue meme si l'ecran est absent ou debranche.
+    print("LCD1602 error:", error)
+
+
+def display_message(first_line, second_line):
+    if lcd is None:
+        return
+
+    try:
+        lcd.write_lines(first_line, second_line)
+    except Exception as error:
+        # Une panne I2C ne doit pas interrompre la lecture du DHT11.
+        print("LCD1602 write error:", error)
+
 print("================================")
+display_message(
+    "Irrigation",
+    "Demarrage..."
+)
 print(" Irrigation ESP32 Controller")
 print(" Temperature monitoring")
 print(" Threshold: {} C".format(TEMP_THRESHOLD))
@@ -49,9 +77,18 @@ while True:
             )
         )
 
+        display_message(
+            "T:{}C H:{}%".format(temperature, humidity),
+            "{} / {}".format(status_temperature, status_humidity)
+        )
+
     except Exception as error:
         print("DHT11 error:", error)
         # A sensor failure must be visible instead of leaving every LED off.
         leds.red_on()
+        display_message(
+            "Erreur capteur",
+            "Verifier DHT11"
+        )
 
     sleep(3)

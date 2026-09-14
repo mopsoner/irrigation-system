@@ -4,6 +4,7 @@ from sensors.dht_sensor import DHTSensor
 from sensors.motion_sensor import MotionSensor
 from indicators.leds import StatusLeds
 from indicators.lcd1602 import LCD1602
+from indicators.buzzer import StateChangeBuzzer
 
 
 TEMP_THRESHOLD = 30
@@ -15,10 +16,12 @@ HUM_THRESHOLD = 75
 LCD_SDA_PIN = 13
 LCD_SCL_PIN = 14
 MOTION_SENSOR_PIN = 35
+BUZZER_PIN = 12
 
 
 sensor = DHTSensor(pin_number=27)
 motion_sensor = MotionSensor(pin_number=MOTION_SENSOR_PIN)
+buzzer = StateChangeBuzzer(pin_number=BUZZER_PIN)
 
 leds = StatusLeds(
     green_pin=15,
@@ -78,6 +81,12 @@ while True:
             HUM_THRESHOLD
         )
 
+        buzzer.notify_state((
+            status_temperature,
+            status_humidity,
+            motion_detected,
+        ))
+
         print(
             "Temperature: {} C | Humidity: {} % | Motion: {} | Status: {}".format(
                 temperature,
@@ -100,6 +109,7 @@ while True:
         print("Sensor error:", error)
         # A sensor failure must be visible instead of leaving every LED off.
         leds.red_on()
+        buzzer.notify_state(("ERROR",))
         display_message(
             "Erreur capteur",
             "Verifier capteurs"

@@ -1,6 +1,6 @@
 from time import sleep_ms
 
-from machine import I2C, Pin
+import machine
 
 
 class LCD1602:
@@ -15,14 +15,17 @@ class LCD1602:
     _BACKLIGHT = 0x08
     _RS = 0x01
 
-    def __init__(self, sda_pin=34, scl_pin=35, i2c_id=0, address=None):
+    def __init__(self, sda_pin=13, scl_pin=14, address=None, i2c=None):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin
-        self.i2c = I2C(
-            i2c_id,
-            sda=Pin(sda_pin),
-            scl=Pin(scl_pin),
-            freq=100000
+        # Freenove utilise un bus I2C logiciel pour le LCD. Les broches par
+        # defaut suivent son montage ESP32 (SDA 13 / SCL 14). Les GPIO 34 et
+        # 35 de l'ESP32 classique sont des entrees uniquement et ne peuvent
+        # donc pas piloter un bus I2C.
+        self.i2c = i2c or machine.SoftI2C(
+            sda=machine.Pin(sda_pin),
+            scl=machine.Pin(scl_pin),
+            freq=100000,
         )
         self.address = self._find_address() if address is None else address
         self._initialize()
@@ -34,13 +37,12 @@ class LCD1602:
             if address in devices:
                 return address
 
-        if devices:
-            return devices[0]
-
         raise OSError(
-            "Aucun peripherique I2C detecte sur SDA {} / SCL {}".format(
+            "LCD absent (adresses cherchees: 0x27/0x3F) sur SDA {} / SCL {}; "
+            "scan={}".format(
                 self.sda_pin,
-                self.scl_pin
+                self.scl_pin,
+                [hex(device) for device in devices],
             )
         )
 
@@ -71,14 +73,11 @@ class LCD1602:
     def _initialize(self):
         sleep_ms(50)
 
-        # Sequence imposee par le HD44780 pour passer en mode 4 bits.
-        self._write_nibble(0x03)
+        # Meme sequence que l'exemple Freenove: reveil du HD44780, puis
+        # passage explicite en mode 4 bits avant sa configuration.
+        self._command(0x33)
         sleep_ms(5)
-        self._write_nibble(0x03)
-        sleep_ms(1)
-        self._write_nibble(0x03)
-        self._write_nibble(0x02)
-
+        self._command(0x32)
         self._command(self._FUNCTION_2_LINES)
         self._command(self._DISPLAY_ON)
         self._command(self._CLEAR)

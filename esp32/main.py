@@ -9,6 +9,11 @@ TEMP_THRESHOLD = 30
 
 HUM_THRESHOLD = 75
 
+# Cablage LCD1602 du tutoriel Freenove FNK0025. GPIO 34/35 sont des entrees
+# uniquement sur l'ESP32 classique et ne peuvent pas servir de SDA/SCL.
+LCD_SDA_PIN = 13
+LCD_SCL_PIN = 14
+
 
 sensor = DHTSensor(pin_number=27)
 
@@ -25,8 +30,8 @@ lcd = None
 
 try:
     lcd = LCD1602(
-        sda_pin=34,
-        scl_pin=35
+        sda_pin=LCD_SDA_PIN,
+        scl_pin=LCD_SCL_PIN
     )
     print("LCD1602 detected at address", hex(lcd.address))
 except Exception as error:

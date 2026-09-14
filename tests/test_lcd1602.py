@@ -77,6 +77,23 @@ class LCD1602Tests(unittest.TestCase):
         # Deux curseurs et 32 caracteres, six transferts PCF8574 par octet.
         self.assertEqual(len(bus.writes) - writes_before, 204)
 
+    def test_pads_and_truncates_lines_without_ljust(self):
+        bus = FakeSoftI2C(
+            sda=FakePin(34),
+            scl=FakePin(35),
+            freq=100000,
+        )
+        with patch.object(lcd_module, "sleep_ms"):
+            lcd = lcd_module.LCD1602(i2c=bus)
+
+        written = []
+        lcd.set_cursor = lambda column, row: None
+        lcd.write = written.append
+
+        lcd.write_lines(29, "abcdefghijklmnopq")
+
+        self.assertEqual(written, ["29" + " " * 14, "abcdefghijklmnop"])
+
 
 if __name__ == "__main__":
     unittest.main()

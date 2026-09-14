@@ -15,7 +15,7 @@ class LCD1602:
     _BACKLIGHT = 0x08
     _RS = 0x01
 
-    def __init__(self, sda_pin=32, scl_pin=33, i2c_id=0, address=None):
+    def __init__(self, sda_pin=21, scl_pin=22, i2c_id=0, address=None):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin
         self.i2c = I2C(

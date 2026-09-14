@@ -20,6 +20,7 @@ lcd = LCD1602(
 leds = StatusLeds(
     green_pin=15,
     yellow_pin=2,
+    # GPIO 21 est maintenant reserve au bus I2C (SDA).
     red_pin=4
 )
 
@@ -28,8 +29,8 @@ lcd = None
 
 try:
     lcd = LCD1602(
-        sda_pin=32,
-        scl_pin=33
+        sda_pin=21,
+        scl_pin=22
     )
     print("LCD1602 detected at address", hex(lcd.address))
 except Exception as error:

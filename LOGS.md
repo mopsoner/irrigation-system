@@ -4,6 +4,17 @@ Ce fichier sert de journal de bord du projet afin de conserver un historique cla
 
 ## 2026-09-14
 
+### Initialisation JPEG de la camera OV2640
+
+- l'API objet Freenove construit desormais `Camera` directement avec
+  `pixel_format=PixelFormat.JPEG` et `xclk_freq=20000000`, sans initialisation
+  intermediaire en RGB565
+- la resolution UXGA (1600x1200) est privilegiee lorsqu'elle est exposee par le
+  firmware, avec repli vers la meilleure resolution inferieure disponible
+- l'API fonctionnelle `camera.init()` / `camera.capture()` reste compatible et
+  continue elle aussi d'etre initialisee au format JPEG
+- la signature JPEG `FF D8` reste verifiee avant toute ecriture sur disque
+
 ### Ajout du Wi-Fi
 
 - mode station (STA) active au demarrage

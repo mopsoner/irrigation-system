@@ -15,15 +15,8 @@ class OV2640Camera:
 
     def _initialize(self):
         if self.camera is not self.camera_module:
-            # L'API objet initialise le capteur dans Camera(). Les methodes
-            # init() eventuelles de l'instance n'ont pas toutes la meme
-            # signature que l'API fonctionnelle.
-            jpeg_format = self._jpeg_format()
-            for name in ("set_pixel_format", "set_pixformat", "pixformat"):
-                setter = getattr(self.camera, name, None)
-                if callable(setter) and jpeg_format is not None:
-                    setter(jpeg_format)
-                    break
+            # L'API objet Freenove a deja initialise le capteur en JPEG dans
+            # Camera(). Ne pas le demarrer dans son format RGB565 par defaut.
             return
 
         initializer = getattr(self.camera, "init", None)
@@ -64,7 +57,27 @@ class OV2640Camera:
 
         camera_class = getattr(module, "Camera", None)
         if callable(camera_class):
-            instance = camera_class()
+            pixel_format = getattr(module, "PixelFormat", None)
+            jpeg_format = (
+                getattr(pixel_format, "JPEG", None)
+                if pixel_format is not None
+                else None
+            )
+            if jpeg_format is None:
+                raise RuntimeError(
+                    "format PixelFormat.JPEG indisponible dans le module camera; "
+                    "la camera objet ne sera pas initialisee en RGB565"
+                )
+
+            options = {
+                "pixel_format": jpeg_format,
+                "xclk_freq": 20000000,
+            }
+            frame_size = self._best_frame_size()
+            if frame_size is not None:
+                options["frame_size"] = frame_size
+
+            instance = camera_class(**options)
             if callable(getattr(instance, "capture", None)) or callable(
                 getattr(instance, "snapshot", None)
             ):
@@ -74,6 +87,20 @@ class OV2640Camera:
             "module camera incompatible: API init/capture ou Camera requise; "
             "installer un firmware MicroPython avec le pilote OV2640"
         )
+
+    def _best_frame_size(self):
+        """Retourne la meilleure resolution exposee par l'API objet."""
+        frame_sizes = getattr(self.camera_module, "FrameSize", None)
+        if frame_sizes is None:
+            return None
+
+        # Ordre decroissant: UXGA (1600x1200), puis les formats usuels dont la
+        # disponibilite varie selon la version du firmware Freenove.
+        for name in ("UXGA", "SXGA", "XGA", "SVGA", "VGA", "QVGA"):
+            value = getattr(frame_sizes, name, None)
+            if value is not None:
+                return value
+        return None
 
     def _create_photo_directory(self):
         if self.photo_directory == "/":

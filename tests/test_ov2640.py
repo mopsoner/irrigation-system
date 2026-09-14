@@ -35,12 +35,9 @@ class FakeCameraModule:
 
 
 class FakeObjectCamera:
-    def __init__(self):
+    def __init__(self, **options):
         self.closed = False
-        self.pixel_format = None
-
-    def set_pixel_format(self, pixel_format):
-        self.pixel_format = pixel_format
+        self.options = options
 
     def snapshot(self):
         return JPEG_DATA
@@ -50,7 +47,12 @@ class FakeObjectCamera:
 
 
 class FakeObjectCameraModule:
-    JPEG = 9
+    class PixelFormat:
+        JPEG = 9
+
+    class FrameSize:
+        UXGA = 13
+
     Camera = FakeObjectCamera
 
 
@@ -85,8 +87,25 @@ class OV2640CameraTests(unittest.TestCase):
             camera.deinit()
 
             self.assertEqual(pathlib.Path(path).read_bytes(), JPEG_DATA)
-            self.assertEqual(camera.camera.pixel_format, 9)
+            self.assertEqual(
+                camera.camera.options,
+                {
+                    "pixel_format": 9,
+                    "frame_size": 13,
+                    "xclk_freq": 20000000,
+                },
+            )
             self.assertTrue(camera.camera.closed)
+
+    def test_object_api_falls_back_to_the_best_available_frame_size(self):
+        class Module(FakeObjectCameraModule):
+            class FrameSize:
+                SVGA = 10
+                VGA = 8
+
+        camera = OV2640Camera(camera_module=Module())
+
+        self.assertEqual(camera.camera.options["frame_size"], 10)
 
     def test_explains_when_the_camera_module_is_incompatible(self):
         with self.assertRaisesRegex(RuntimeError, "firmware MicroPython"):

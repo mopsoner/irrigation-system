@@ -4,6 +4,14 @@ Ce fichier sert de journal de bord du projet afin de conserver un historique cla
 
 ## 2026-09-14
 
+### Ajout du Wi-Fi
+
+- mode station (STA) active au demarrage
+- scan des points d'acces avec affichage du SSID, canal, signal et securite
+- connexion facultative via `esp32/wifi_config.py`
+- delai de connexion configurable et fonctionnement des capteurs maintenu en cas d'erreur Wi-Fi
+- le mot de passe n'est jamais affiche dans la console
+
 ### État actuel
 
 - Environnement de développement : Ubuntu + VS Code
@@ -78,7 +86,7 @@ esp32/
 - relais
 - pompe à eau
 - capteur d'humidité du sol
-- Wi-Fi / MQTT
+- MQTT
 - historisation des mesures
 - supervision distante
 

@@ -14,7 +14,7 @@ sensor = DHTSensor(pin_number=27)
 leds = StatusLeds(
     green_pin=15,
     yellow_pin=2,
-    red_pin=21
+    red_pin=4
 )
 
 print("================================")
